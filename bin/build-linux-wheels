@@ -21,9 +21,9 @@ def check_call(*cmd):
 
 def main():
     os.makedirs('dist', exist_ok=True)
-    for python in ('cp27-cp27mu', 'cp36-cp36m'):
+    for platform in ('manylinux1', 'musllinux_1_1'):
         with tempfile.TemporaryDirectory() as work:
-            pip = f'/opt/python/{python}/bin/pip'
+            pip = '/opt/python/cp36-cp36m/bin/pip'
             check_call(
                 'docker', 'run', '-ti',
                 # Use this so the files are not owned by root
@@ -31,7 +31,7 @@ def main():
                 # We'll do building in /work and copy results to /dist
                 '-v', f'{work}:/work:rw',
                 '-v', '{}:/dist:rw'.format(os.path.abspath('dist')),
-                'quay.io/pypa/manylinux1_x86_64:latest',
+                f'quay.io/pypa/{platform}_x86_64:latest',
                 'bash', '-exc',
                 '{} wheel --verbose --wheel-dir /work --no-deps libsass && '
                 'auditwheel repair --wheel-dir /dist /work/*.whl'.format(pip),
