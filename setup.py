@@ -237,9 +237,8 @@ if sys.version_info >= (3,) and platform.python_implementation() == 'CPython':
 
 
 setup(
-    name='libsass',
-    description='Sass for Python: '
-                'A straightforward binding of libsass for Python.',
+    name='libsass-bin',
+    description='Sass for Python (binary wheels)',
     long_description=readme(),
     version=version(),
     ext_modules=[sass_extension],

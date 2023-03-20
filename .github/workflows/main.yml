@@ -2,29 +2,45 @@ name: main
 
 on:
   push:
-    branches: [main, test-me-*]
-    tags:
-  pull_request:
+    tags: ['*']
 
 jobs:
-  main-windows:
-    uses: asottile/workflows/.github/workflows/tox.yml@v1.1.0
-    with:
-      env: '["py37"]'
-      os: windows-latest
-      arch: '["x64", "x86"]'
-      wheel-tags: true
-      submodules: true
-  main-macos:
-    uses: asottile/workflows/.github/workflows/tox.yml@v1.1.0
-    with:
-      env: '["py37"]'
-      os: macos-latest
-      wheel-tags: true
-      submodules: true
-  main-linux:
-    uses: asottile/workflows/.github/workflows/tox.yml@v1.1.0
-    with:
-      env: '["pypy3", "py37", "py38", "py39", "py310"]'
-      os: ubuntu-latest
-      submodules: true
+  build:
+    name: Build wheels on ${{matrix.os}}
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-2019, macOS-11]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Set up Python
+        uses: actions/setup-python@v3
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.12.1
+        env:
+          CIBW_BUILD: cp37-*
+          CIBW_ARCHS_LINUX: native
+      - name: Upload wheelhouse artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheelhouse
+          path: ./wheelhouse/*.whl
+          retention-days: 1
+
+  upload:
+    name: Upload wheels to PyPI
+    runs-on: ubuntu-20.04
+    needs: [build]
+    steps:
+      - name: Download wheelhouse artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: wheelhouse
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@v1.5.0
+        with:
+          user: __token__
+          password: ${{secrets.PYPI_TOKEN}}
