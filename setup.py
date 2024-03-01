@@ -1,11 +1,8 @@
-import ast
 import atexit
 import os.path
 import platform
-import shutil
 import subprocess
 import sys
-import tempfile
 
 import distutils.cmd
 import distutils.log
@@ -147,15 +144,6 @@ else:
     include_dirs = [os.path.join('.', 'libsass', 'include')]
     extra_compile_args.append(define)
 
-# Py_LIMITED_API does not work for pypy
-# https://foss.heptapod.net/pypy/pypy/issues/3173
-if not hasattr(sys, 'pypy_version_info'):
-    py_limited_api = True
-    define_macros = [('Py_LIMITED_API', None)]
-else:
-    py_limited_api = False
-    define_macros = []
-
 sass_extension = Extension(
     '_sass',
     sorted(sources),
@@ -164,125 +152,28 @@ sass_extension = Extension(
     extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
     libraries=libraries,
-    py_limited_api=py_limited_api,
-    define_macros=define_macros,
+    py_limited_api=True,
+    define_macros=[('Py_LIMITED_API', None)],
 )
 
+cmdclass = {}
 
-def version(sass_filename='sass.py'):
-    with open(sass_filename) as f:
-        tree = ast.parse(f.read(), sass_filename)
-    for node in tree.body:
-        if isinstance(node, ast.Assign) and len(node.targets) == 1:
-            target, = node.targets
-            if isinstance(target, ast.Name) and target.id == '__version__':
-                return node.value.s
+try:
+    import wheel.bdist_wheel
+except ImportError:
+    pass
+else:
+    class bdist_wheel(wheel.bdist_wheel.bdist_wheel):
+        def finalize_options(self):
+            self.py_limited_api = f'cp3{sys.version_info[1]}'
+            super().finalize_options()
 
-
-def readme():
-    try:
-        with open(os.path.join(os.path.dirname(__file__), 'README.rst')) as f:
-            return f.read()
-    except OSError:
-        pass
-
-
-class upload_doc(distutils.cmd.Command):
-    """Uploads the documentation to GitHub pages."""
-
-    description = __doc__
-    user_options = []
-
-    def initialize_options(self):
-        if sys.version_info < (3,):
-            raise SystemExit('upload_doc must be run with python 3')
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        path = tempfile.mkdtemp()
-        build = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            'build', 'sphinx', 'html',
-        )
-        os.chdir(path)
-        os.system(
-            'git clone -b gh-pages --depth 5 '
-            'git@github.com:sass/libsass-python.git .',
-        )
-        os.system('git rm -r .')
-        os.system('touch .nojekyll')
-        os.system('cp -r ' + build + '/* .')
-        os.system('git stage .')
-        os.system('git commit -a -m "Documentation updated."')
-        os.system('git push origin gh-pages')
-        shutil.rmtree(path)
-
-
-cmdclass = {'upload_doc': upload_doc}
-
-if sys.version_info >= (3,) and platform.python_implementation() == 'CPython':
-    try:
-        import wheel.bdist_wheel
-    except ImportError:
-        pass
-    else:
-        class bdist_wheel(wheel.bdist_wheel.bdist_wheel):
-            def finalize_options(self):
-                self.py_limited_api = f'cp3{sys.version_info[1]}'
-                super().finalize_options()
-
-        cmdclass['bdist_wheel'] = bdist_wheel
+    cmdclass['bdist_wheel'] = bdist_wheel
 
 
 setup(
     name='libsass-bin',
     description='Sass for Python (binary wheels)',
-    long_description=readme(),
-    version=version(),
     ext_modules=[sass_extension],
-    packages=['sassutils'],
-    py_modules=['pysassc', 'sass', 'sasstests'],
-    package_data={
-        '': [
-            'README.rst',
-            'test/*.sass',
-        ],
-    },
-    license='MIT License',
-    author='Hong Minhee',
-    author_email='minhee' '@' 'dahlia.kr',
-    url='https://sass.github.io/libsass-python/',
-    download_url='https://github.com/sass/libsass-python/releases',
-    entry_points={
-        'distutils.commands': [
-            'build_sass = sassutils.distutils:build_sass',
-        ],
-        'distutils.setup_keywords': [
-            'sass_manifests = sassutils.distutils:validate_manifests',
-        ],
-        'console_scripts': [
-            ['pysassc = pysassc:main'],
-        ],
-    },
-    classifiers=[
-        'Development Status :: 5 - Production/Stable',
-        'Environment :: Web Environment',
-        'Intended Audience :: Developers',
-        'License :: OSI Approved :: MIT License',
-        'Operating System :: OS Independent',
-        'Programming Language :: C',
-        'Programming Language :: C++',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: Implementation :: CPython',
-        'Programming Language :: Python :: Implementation :: PyPy',
-        'Programming Language :: Python :: Implementation :: Stackless',
-        'Topic :: Internet :: WWW/HTTP',
-        'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
-        'Topic :: Software Development :: Code Generators',
-        'Topic :: Software Development :: Compilers',
-    ],
-    python_requires='>=3.8',
     cmdclass=cmdclass,
 )
