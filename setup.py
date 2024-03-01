@@ -283,6 +283,6 @@ setup(
         'Topic :: Software Development :: Code Generators',
         'Topic :: Software Development :: Compilers',
     ],
-    python_requires='>=3.7',
+    python_requires='>=3.8',
     cmdclass=cmdclass,
 )
