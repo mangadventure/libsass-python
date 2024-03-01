@@ -18,8 +18,12 @@ jobs:
           submodules: true
       - name: Set up Python
         uses: actions/setup-python@v5
+        with:
+          python-version: "3.8 - 3.12"
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.16
+        with:
+          output-dir: dist
         env:
           CIBW_BUILD: cp38-*
           CIBW_ARCHS_LINUX: native
@@ -28,8 +32,8 @@ jobs:
       - name: Upload wheelhouse artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wheelhouse
-          path: wheelhouse/*.whl
+          path: dist/*.whl
+          name: wheels-${{matrix.os}}
           retention-days: 1
 
   upload:
@@ -40,8 +44,9 @@ jobs:
       - name: Download wheelhouse artifact
         uses: actions/download-artifact@v4
         with:
-          name: wheelhouse
           path: dist
+          pattern: wheels-*
+          merge-multiple: true
       - uses: pypa/gh-action-pypi-publish@v1.8.12
         with:
           password: ${{secrets.PYPI_TOKEN}}
