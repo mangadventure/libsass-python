@@ -4,11 +4,8 @@ import platform
 import subprocess
 import sys
 
-import distutils.cmd
-import distutils.log
-import distutils.sysconfig
-from setuptools import Extension
-from setuptools import setup
+from setuptools._distutils import sysconfig
+from setuptools import Extension, setup
 
 MACOS_FLAG = ['-mmacosx-version-min=10.7']
 FLAGS_POSIX = [
@@ -37,7 +34,7 @@ else:
 if platform.system() in {'Darwin', 'FreeBSD', 'OpenBSD'}:
     os.environ.setdefault('CC', 'clang')
     os.environ.setdefault('CXX', 'clang++')
-    orig_customize_compiler = distutils.sysconfig.customize_compiler
+    orig_customize_compiler = sysconfig.customize_compiler
 
     def customize_compiler(compiler):
         orig_customize_compiler(compiler)
@@ -46,7 +43,7 @@ if platform.system() in {'Darwin', 'FreeBSD', 'OpenBSD'}:
         compiler.compiler_cxx[0] = os.environ['CXX']
         compiler.linker_so[0] = os.environ['CXX']
         return compiler
-    distutils.sysconfig.customize_compiler = customize_compiler
+    sysconfig.customize_compiler = customize_compiler
 
 if os.environ.get('SYSTEM_SASS', False):
     libraries = ['sass']
